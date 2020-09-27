@@ -1,7 +1,15 @@
-import json
 import numpy as np
 import heapq
 from scipy.spatial.distance import cdist
+
+
+def count_inversions(x: []) -> int:
+    inv_count = 0
+    for i in range(len(x)):
+        for j in range(i + 1, len(x)):
+            if x[i] > x[j]:
+                inv_count += 1
+    return inv_count
 
 
 class Board:
@@ -38,7 +46,8 @@ class Board:
         return self.__hamming
 
     def manhattan(self) -> int:  # sum of Manhattan distances between tiles and goal
-        return self.__manhattan
+        # return self.__manhattan
+        pass
 
     def is_goal(self) -> int:  # is this board the goal board?
         return self.__is_goal
@@ -67,20 +76,21 @@ class Board:
 
         return result
 
-    @staticmethod
-    def __count_inversions(x: []) -> int:
-        return 0
-
     def is_solvable(self) -> bool:  # is this board solvable?
         row_order_arr = self.__state.flatten()
-        n_inv = Board.__count_inversions(row_order_arr)
-        if self.size() % 2 != 0 and n_inv % 2 != 0:  # size is odd
+        n_inv = count_inversions(row_order_arr)
+        if self.size() % 2 != 0:  # size is odd
             # we’ll consider the case when the board size n is an odd integer.
             # In this case, each move changes the number of inversions by an even number.
             # Thus, if a board has an odd number of inversions,
             # it is unsolvable because the goal board has an even number of inversions (zero).
-            return False
-        return True
+            return n_inv % 2 == 0
+        zero_at = np.argwhere(self.__state == 0)[0]
+        # we’ll consider the case when the board size n is an even integer.
+        # In this case, the parity of the number of inversions is not invariant.
+        # However, the parity of the number of inversions plus the row of the blank square(indexed starting at 0)
+        # is invariant: each move changes this sum by an even number.
+        return (n_inv + zero_at[0]) % 2 == 0
 
 
 class Solver:
@@ -106,11 +116,3 @@ class Solver:
         if not self.init.is_solvable():
             raise RuntimeError("this board is not solvable")
         return self.__solution_steps
-
-
-if __name__ == "__main__":
-    init = np.array(json.loads('[[8, 1, 3],[4, 0, 2], [7, 6, 5]]'), dtype=np.int)
-    solver = Solver(init)
-    # assert solver.init.manhattan() == 10
-    assert solver.init.hamming() == 5
-    assert solver.goal.hamming() == 0
