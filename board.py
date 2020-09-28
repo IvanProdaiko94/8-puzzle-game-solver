@@ -1,6 +1,5 @@
 import numpy as np
-import heapq
-from scipy.spatial.distance import cdist
+from enum import Enum
 
 
 def count_inversions(x: []) -> int:
@@ -12,22 +11,43 @@ def count_inversions(x: []) -> int:
     return inv_count
 
 
+def hamming(x: []) -> int:
+    result = 0
+    i = 1
+    for item in x:
+        if item != 0 and i != item:
+            result += 1
+        i += 1
+    return result
+
+
+def manhattan(x: []) -> int:
+    return sum(abs((val - 1) % 3 - i % 3) + abs((val - 1) // 3 - i // 3) for i, val in enumerate(x) if val)
+
+
+class AvailableMetrics(Enum):
+    HammingDistance = 'hamming'
+    Manhattan = 'manhattan'
+
+
 class Board:
-    def __init__(self, tiles: np.ndarray, goal: np.ndarray, is_goal=False):
+    def __init__(self, tiles: np.ndarray, goal: np.ndarray, prev=None, metric=AvailableMetrics.HammingDistance, is_goal=False):
         if tiles.shape[0] != tiles.shape[1]:
             raise AssertionError("input is not squared")
         self.__state = tiles
         self.__goal = goal
         self.__is_goal = is_goal
-        # self.__manhattan = cdist(tiles, goal, metric='cityblock')
-        self.__hamming = 0
+        self.__prev = prev
+        self.__metric = metric
+        self.cost = 0
+        # calculate manhattan distance
+        if metric == AvailableMetrics.HammingDistance:
+            self.cost = hamming(self.__state.flatten())
+        elif metric == AvailableMetrics.Manhattan:
+            self.__manhattan = manhattan(self.__state.flatten())
+        else:
+            raise BaseException("distance metric is not valid")
         # calculate hamming distance
-        i = 1
-        for row in self.__state:
-            for item in row:
-                if item != 0 and i != item:
-                    self.__hamming += 1
-                i += 1
 
     def __repr__(self) -> str:  # string representation of this board
         return "\n" + np.array_str(self.__state) + "\n"
@@ -35,19 +55,18 @@ class Board:
     def __str__(self) -> str:  # string representation of this board
         return "\n" + np.array_str(self.__state) + "\n"
 
+    def __lt__(self, other) -> bool:
+        return self.cost < other.cost
+
+    def prev(self):
+        return self.__prev
+
     def tile_at(self, row: int, col: int) -> int:  # tile at (row, col) or 0 if blank
         return self.__state[row][col]
 
     def size(self) -> int:  # board size n
         shape = self.__state.shape
         return shape[0]
-
-    def hamming(self) -> int:  # number of tiles out of place
-        return self.__hamming
-
-    def manhattan(self) -> int:  # sum of Manhattan distances between tiles and goal
-        # return self.__manhattan
-        pass
 
     def is_goal(self) -> int:  # is this board the goal board?
         return self.__is_goal
@@ -72,7 +91,15 @@ class Board:
         for pos in available_position_changes:
             next_state = np.copy(self.__state)
             next_state[zero_at[0]][zero_at[1]], next_state[pos[0]][pos[1]] = next_state[pos[0]][pos[1]], next_state[zero_at[0]][zero_at[1]]
-            result.append(Board(tiles=next_state, goal=self.__goal, is_goal=next_state == self.__goal))
+            result.append(
+                Board(
+                    tiles=next_state,
+                    goal=self.__goal,
+                    prev=self,
+                    metric=self.__metric,
+                    is_goal=next_state == self.__goal,
+                ),
+            )
 
         return result
 
@@ -91,28 +118,3 @@ class Board:
         # However, the parity of the number of inversions plus the row of the blank square(indexed starting at 0)
         # is invariant: each move changes this sum by an even number.
         return (n_inv + zero_at[0]) % 2 == 0
-
-
-class Solver:
-    def __init__(self, initial: np.array):  # find a solution to the initial board (using the A* algorithm)
-        if initial.shape[0] != initial.shape[1]:
-            raise AssertionError("input is not squared")
-
-        # create goal board
-        side_size = initial.shape[0]
-        number_of_elements = side_size * side_size
-        goal = np.arange(1, number_of_elements+1, dtype=np.int).reshape((side_size, side_size))
-        # last element of goal board is always 0
-        goal[side_size - 1][side_size - 1] = 0
-
-        self.init = Board(tiles=initial, goal=goal, is_goal=goal == initial)
-        self.goal = Board(tiles=goal, goal=goal, is_goal=True)
-        self.__solution_steps: [Board] = []
-
-    def moves(self) -> int:  # min number of moves to solve initial board
-        return len(self.__solution_steps)
-
-    def solution(self) -> [Board]:  # sequence of boards in a shortest solution
-        if not self.init.is_solvable():
-            raise RuntimeError("this board is not solvable")
-        return self.__solution_steps
