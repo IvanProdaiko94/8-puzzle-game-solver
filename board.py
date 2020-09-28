@@ -31,7 +31,7 @@ class AvailableMetrics(Enum):
 
 
 class Board:
-    def __init__(self, tiles: np.ndarray, goal: np.ndarray, prev=None, metric=AvailableMetrics.HammingDistance, is_goal=False):
+    def __init__(self, tiles: np.ndarray, goal: np.ndarray, prev=None, metric=AvailableMetrics.Manhattan, is_goal=False):
         if tiles.shape[0] != tiles.shape[1]:
             raise AssertionError("input is not squared")
         self.__state = tiles
@@ -40,14 +40,15 @@ class Board:
         self.__prev = prev
         self.__metric = metric
         self.cost = 0
+        if prev is not None:
+            self.cost = prev.cost
         # calculate manhattan distance
         if metric == AvailableMetrics.HammingDistance:
-            self.cost = hamming(self.__state.flatten())
+            self.cost += hamming(self.__state.flatten())
         elif metric == AvailableMetrics.Manhattan:
-            self.__manhattan = manhattan(self.__state.flatten())
+            self.cost += manhattan(self.__state.flatten())
         else:
             raise BaseException("distance metric is not valid")
-        # calculate hamming distance
 
     def __repr__(self) -> str:  # string representation of this board
         return "\n" + np.array_str(self.__state) + "\n"
@@ -58,8 +59,15 @@ class Board:
     def __lt__(self, other) -> bool:
         return self.cost < other.cost
 
+    def __eq__(self, other) -> bool:  # all neighboring boards
+        comparison = self.__state == other.state()
+        return comparison.all()
+
     def prev(self):
         return self.__prev
+
+    def state(self) -> np.ndarray:
+        return self.__state
 
     def tile_at(self, row: int, col: int) -> int:  # tile at (row, col) or 0 if blank
         return self.__state[row][col]
@@ -70,10 +78,6 @@ class Board:
 
     def is_goal(self) -> int:  # is this board the goal board?
         return self.__is_goal
-
-    def __eq__(self, other) -> bool:  # all neighboring boards
-        comparison = self.__state == other
-        return comparison.all()
 
     def neighbors(self) -> []:  # all neighboring boards
         result = []
@@ -104,17 +108,26 @@ class Board:
         return result
 
     def is_solvable(self) -> bool:  # is this board solvable?
-        row_order_arr = self.__state.flatten()
+        row_order_arr = []
+        for row in self.__state:
+            for item in row:
+                if item != 0:
+                    row_order_arr.append(item)
+
         n_inv = count_inversions(row_order_arr)
         if self.size() % 2 != 0:  # size is odd
             # we’ll consider the case when the board size n is an odd integer.
             # In this case, each move changes the number of inversions by an even number.
             # Thus, if a board has an odd number of inversions,
             # it is unsolvable because the goal board has an even number of inversions (zero).
-            return n_inv % 2 == 0
+            is_solvable = n_inv % 2 == 0
+            return is_solvable
         zero_at = np.argwhere(self.__state == 0)[0]
         # we’ll consider the case when the board size n is an even integer.
         # In this case, the parity of the number of inversions is not invariant.
         # However, the parity of the number of inversions plus the row of the blank square(indexed starting at 0)
         # is invariant: each move changes this sum by an even number.
-        return (n_inv + zero_at[0]) % 2 == 0
+        # That is, when n is even, an n - by - n board is solvable
+        # if and only if the number of inversions plus the row of the blank square is odd.
+        is_solvable = (n_inv + zero_at[0]) % 2 != 0
+        return is_solvable

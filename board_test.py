@@ -28,15 +28,6 @@ class BoardTestCase(unittest.TestCase):
         board = Board(init, goal, prev=None, metric=AvailableMetrics.Manhattan, is_goal=False)
         self.assertEqual(board.is_solvable(), True)
 
-        init = np.array(json.loads('[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 15, 14, 0]]'), dtype=np.int)
-        goal = np.array(json.loads('[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 0]]'), dtype=np.int)
-        board = Board(init, goal, prev=None, metric=AvailableMetrics.Manhattan, is_goal=False)
-        self.assertEqual(board.is_solvable(), False)
-
-        init = np.array(json.loads('[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 0]]'), dtype=np.int)
-        board = Board(init, goal, prev=None, metric=AvailableMetrics.Manhattan, is_goal=False)
-        self.assertEqual(board.is_solvable(), True)
-
 
 if __name__ == '__main__':
     unittest.main()
